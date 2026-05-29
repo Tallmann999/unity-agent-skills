@@ -1,0 +1,3 @@
+{"id":"arch_001","skill":"unity-architecture-guardian","prompt":"Analyze Assets/Game/Core and propose Runtime/Editor/Tests separation.","must_include":["Runtime","Editor","Tests","violations","next actions"]}
+{"id":"prefab_001","skill":"unity-prefab-assembler","prompt":"Create a composition plan for prefab enemy turret.","must_include":["GameObject hierarchy","required components","ScriptableObject","risks"]}
+{"id":"ui_001","skill":"unity-ui-toolkit-builder","prompt":"Create a UI Toolkit screen plan for settings menu.","must_include":["UXML","USS","bindings","controller"]}

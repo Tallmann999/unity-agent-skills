@@ -1,0 +1,76 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate repository structure
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path(".")
+          required_paths = [
+              ".agents/skills/unity-architecture-guardian/SKILL.md",
+              ".agents/skills/unity-prefab-assembler/SKILL.md",
+              ".agents/skills/unity-ui-toolkit-builder/SKILL.md",
+              "AGENTS.md",
+              "README.md",
+              "LICENSE",
+              "docs/install.md",
+              "docs/provider-compatibility.md",
+              "docs/testing.md",
+              "docs/publishing.md",
+              "samples/unity-skill-sandbox/Packages/manifest.json",
+              "evals/cases.jsonl",
+          ]
+          missing = [path for path in required_paths if not (root / path).exists()]
+          if missing:
+              raise SystemExit("Missing required paths:\n" + "\n".join(missing))
+
+          for skill_dir in sorted((root / ".agents/skills").iterdir()):
+              if not skill_dir.is_dir():
+                  continue
+              skill_file = skill_dir / "SKILL.md"
+              text = skill_file.read_text(encoding="utf-8")
+              match = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+              if not match:
+                  raise SystemExit(f"{skill_file} has no YAML frontmatter")
+              name_match = re.search(r"^name:\s*([a-z0-9-]+)\s*$", match.group(1), re.M)
+              if not name_match:
+                  raise SystemExit(f"{skill_file} has no valid name frontmatter")
+              if name_match.group(1) != skill_dir.name:
+                  raise SystemExit(f"{skill_file} name does not match directory")
+              for subdir in ["agents", "references", "scripts", "assets"]:
+                  if not (skill_dir / subdir).exists():
+                      raise SystemExit(f"{skill_dir} missing {subdir}/")
+
+          with (root / "evals/cases.jsonl").open(encoding="utf-8") as handle:
+              for line_number, line in enumerate(handle, 1):
+                  if line.strip():
+                      json.loads(line)
+          PY
+
+      - name: Run deterministic script smoke tests
+        run: |
+          python .agents/skills/unity-architecture-guardian/scripts/scan_asmdefs.py samples/unity-skill-sandbox
+          python .agents/skills/unity-architecture-guardian/scripts/validate_naming.py samples/unity-skill-sandbox
+          python .agents/skills/unity-architecture-guardian/scripts/build_component_map.py samples/unity-skill-sandbox --format markdown
+          python .agents/skills/unity-prefab-assembler/scripts/validate_naming.py samples/unity-skill-sandbox
+          python .agents/skills/unity-prefab-assembler/scripts/build_component_map.py samples/unity-skill-sandbox --format json
+          python .agents/skills/unity-ui-toolkit-builder/scripts/validate_naming.py samples/unity-skill-sandbox
